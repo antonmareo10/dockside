@@ -11,6 +11,9 @@
     "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test \"test/**/*.test.js\"",
     "scorecard": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/scorecard.js",
     "validate": "node scripts/validate-offline.cjs",
+    "check-imports": "node scripts/check-imports.cjs",
+    "bundle-check": "node scripts/bundle-check.cjs",
+    "check": "npm run validate && npm run check-imports && npm run bundle-check && npm test",
     "lint": "forge lint",
     "forge": "forge"
   },

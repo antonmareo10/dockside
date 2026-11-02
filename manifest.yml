@@ -262,7 +262,7 @@ resources:
     path: prompts
 
 # https://developer.atlassian.com/platform/forge/manifest-reference/permissions/
-# Scopes per Jira REST operation are listed in NOTAS.md.
+# Why each scope is needed: README.md, "Forge modules and Atlassian APIs".
 permissions:
   scopes:
     - read:jira-work

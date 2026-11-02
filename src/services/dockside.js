@@ -277,6 +277,7 @@ export function createDockside({ jiraUser, jiraApp, store, now = () => new Date(
       title: issue.fields.summary ?? '',
       origin: extraction ? { kind: 'agent-extraction', by: extraction.by, at: extraction.at } : origin,
       contentHash,
+      textHash,
       fingerprint: resultFingerprint(result),
       checkedAt: at,
       checkedBy: { actor, accountId },
@@ -311,7 +312,13 @@ export function createDockside({ jiraUser, jiraApp, store, now = () => new Date(
     const perms = await permissions(projectKey, ['EDIT_ISSUES']);
     if (!isDeliveryNote(issue, marker)) return { isDeliveryNote: false, issueKey, projectKey, canEdit: perms.EDIT_ISSUES, agent: AGENT };
     let record = await store.get(keys.result(projectKey, issueKey));
-    if (!record) record = await analyzeIssue({ issueKey, actor: 'panel', accountId, issue });
+    let stale = !record;
+    if (record) {
+      // Issue events can take minutes to arrive; if the note changed since the last check, check it now.
+      const { text } = await noteTextFor(issue, jiraUser);
+      stale = record.textHash !== hashText(text);
+    }
+    if (stale) record = await analyzeIssue({ issueKey, actor: 'panel', accountId, issue });
     return { isDeliveryNote: true, issueKey, projectKey, canEdit: perms.EDIT_ISSUES, agent: AGENT, record: viewOf(record) };
   }
 

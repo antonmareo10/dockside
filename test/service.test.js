@@ -306,3 +306,14 @@ test('MCP tools: check pasted text against a project without a work item', async
   const parsed = await as(VIEWER).tools.parse({ noteText: '3 kg Lemons @ 1,60 = 4,80' });
   assert.equal(parsed.lines[0].unitPrice, 1.6);
 });
+
+test('Opening the panel re-checks a note that changed since the last check', async () => {
+  const { as, world, byDemo } = await seeded();
+  const n1 = byDemo['n1-price-and-over-delivery'];
+  world.issues.get(n1).fields.description = doc(codeBlock(['Supplier: Pescados Rompeolas S.L.', 'Delivery note: RP-24117', 'SKU;Description;Qty;Unit;Price;VAT;Total', 'PES-120;Squid, cleaned;6;kg;9,80;10;58,80', 'Total: 64,68'].join('\n')));
+  const view = await as(EDITOR).getIssueView({ issueKey: n1, accountId: EDITOR });
+  assert.equal(view.record.lineCount, 1);
+  assert.equal(view.record.status, 'OK');
+  const again = await as(EDITOR).getIssueView({ issueKey: n1, accountId: EDITOR });
+  assert.equal(again.record.checkedAt, view.record.checkedAt);
+});
