@@ -20,6 +20,7 @@ test('scorecard: the same holds on corpora from other seeds', () => {
 });
 
 test('scorecard: README table is the output of a fresh run', () => {
-  const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
+  // Line endings are normalised so a Windows checkout compares the same as a Unix one.
+  const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   assert.equal(readmeSection(readme), renderScorecard(computeScorecard()).trim(), 'README scorecard is stale: run npm run scorecard');
 });
