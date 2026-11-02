@@ -325,8 +325,9 @@ export function createDockside({ jiraUser, jiraApp, store, now = () => new Date(
 
   async function recheck({ issueKey, accountId }) {
     const record = await analyzeIssue({ issueKey, actor: 'panel', accountId });
-    if (record.skipped) return { isDeliveryNote: false, issueKey };
-    return { isDeliveryNote: true, issueKey, projectKey: record.projectKey, record: viewOf(record) };
+    const perms = await permissions(record.projectKey, ['EDIT_ISSUES']);
+    if (record.skipped) return { isDeliveryNote: false, issueKey, projectKey: record.projectKey, canEdit: perms.EDIT_ISSUES, agent: AGENT };
+    return { isDeliveryNote: true, issueKey, projectKey: record.projectKey, canEdit: perms.EDIT_ISSUES, agent: AGENT, record: viewOf(record) };
   }
 
   async function markAsDeliveryNote({ issueKey, accountId }) {

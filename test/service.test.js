@@ -317,3 +317,19 @@ test('Opening the panel re-checks a note that changed since the last check', asy
   const again = await as(EDITOR).getIssueView({ issueKey: n1, accountId: EDITOR });
   assert.equal(again.record.checkedAt, view.record.checkedAt);
 });
+
+test('Every panel response has the same shape, so buttons never vanish after an action', async () => {
+  const { as, byDemo } = await seeded();
+  const key = byDemo['n2-line-total-and-vat-rate'];
+  const shapes = [
+    await as(EDITOR).getIssueView({ issueKey: key, accountId: EDITOR }),
+    await as(EDITOR).recheck({ issueKey: key, accountId: EDITOR }),
+  ];
+  for (const v of shapes) {
+    assert.equal(v.isDeliveryNote, true);
+    assert.equal(v.canEdit, true);
+    assert.equal(v.agent.key, 'receiving-clerk');
+    assert.equal(v.issueKey, key);
+    assert.ok(v.record.discrepancies.length > 0);
+  }
+});
