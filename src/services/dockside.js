@@ -193,7 +193,7 @@ export function createDockside({ jiraUser, jiraApp, store, now = () => new Date(
     return hashText(JSON.stringify([r.status, r.amountInDispute, r.discrepancies.map((d) => [d.code, d.lineNo, d.amount])]));
   }
 
-  async function syncIssue(record, { comment }) {
+  async function syncIssue(record, { comment, currentLabels = null }) {
     const effects = [];
     const run = async (op, fn) => {
       try {
@@ -207,7 +207,8 @@ export function createDockside({ jiraUser, jiraApp, store, now = () => new Date(
     const decisionLabel = record.decision ? DECISION_LABELS[record.decision.status] : null;
     const add = [statusLabel, decisionLabel].filter(Boolean);
     const remove = [...Object.values(STATUS_LABELS), ...Object.values(DECISION_LABELS)].filter((l) => !add.includes(l));
-    await run('labels', () => jiraApp.updateLabels(record.issueKey, { add, remove }));
+    const labelsAlreadyRight = Array.isArray(currentLabels) && add.every((l) => currentLabels.includes(l)) && !remove.some((l) => currentLabels.includes(l));
+    if (!labelsAlreadyRight) await run('labels', () => jiraApp.updateLabels(record.issueKey, { add, remove }));
     await run('property', () =>
       jiraApp.setIssueProperty(record.issueKey, PROPERTY_KEY, {
         status: record.status,
@@ -293,7 +294,7 @@ export function createDockside({ jiraUser, jiraApp, store, now = () => new Date(
 
     await store.set(keys.result(projectKey, key), record);
     const changed = !previous || previous.fingerprint !== record.fingerprint;
-    record.sideEffects = await syncIssue(record, { comment: changed });
+    record.sideEffects = await syncIssue(record, { comment: changed, currentLabels: issue.fields.labels ?? null });
     if (changed) await audit(projectKey, { type: 'checked', issueKey: key, by: accountId, actor, detail: `${record.status}, ${record.amountInDispute} in dispute` });
     for (const e of events.filter((x) => x.type === 'decision-cleared')) await audit(projectKey, { ...e, issueKey: key });
     return record;
@@ -530,21 +531,34 @@ export function createDockside({ jiraUser, jiraApp, store, now = () => new Date(
     if (!type) throw new InputError(`Project ${projectKey} has no work type Dockside can use for demo notes.`);
 
     await writeHistory(projectKey, seedHistory());
-    const created = [];
+    // Create the notes in order so their keys read 1 to 7, then check them in parallel to stay
+    // well inside the 25 s resolver limit. A note that repeats an earlier number is checked last.
+    const createdIssues = [];
     for (const spec of DEMO_NOTES) {
       const fields = { project: { key: projectKey }, issuetype: { id: type.id }, summary: demoSummary(spec), description: descriptionFor(spec), labels: [MARKER_LABEL, DEMO_LABEL] };
-      let issue;
+      let created;
+      let labels = fields.labels;
       try {
-        issue = await jiraUser.createIssue(fields);
+        created = await jiraUser.createIssue(fields);
       } catch (e) {
         if (!isJiraStatus(e, 400)) throw e;
-        const { labels, ...noLabels } = fields;
-        issue = await jiraUser.createIssue(noLabels);
+        const { labels: _omit, ...noLabels } = fields;
+        created = await jiraUser.createIssue(noLabels);
+        labels = [];
       }
-      await store.set(keys.marker(issue.key), { projectKey, at: now(), by: accountId, demo: spec.id });
-      const record = await analyzeIssue({ issueKey: issue.key, actor: 'demo', accountId });
-      created.push({ issueKey: issue.key, demo: spec.id, title: spec.title, status: record.status, amountInDispute: record.amountInDispute });
+      await store.set(keys.marker(created.key), { projectKey, at: now(), by: accountId, demo: spec.id });
+      const issue = { id: created.id, key: created.key, fields: { summary: fields.summary, description: fields.description, issuetype: { id: type.id, name: type.name }, labels, attachment: [], project: { id: project.id, key: projectKey } } };
+      createdIssues.push({ spec, issue });
     }
+    const check = async ({ spec, issue }) => {
+      const record = await analyzeIssue({ issueKey: issue.key, actor: 'demo', accountId, issue });
+      return { issueKey: issue.key, demo: spec.id, title: spec.title, status: record.status, amountInDispute: record.amountInDispute };
+    };
+    const first = await Promise.all(createdIssues.filter((c) => !c.spec.duplicateOfDemo).map(check));
+    const later = [];
+    for (const c of createdIssues.filter((x) => x.spec.duplicateOfDemo)) later.push(await check(c));
+    const order = new Map(createdIssues.map((c, i) => [c.issue.key, i]));
+    const created = [...first, ...later].sort((a, b) => order.get(a.issueKey) - order.get(b.issueKey));
     const info = { seededAt: now(), by: accountId, issueType: type.name, issues: created };
     await store.set(keys.demo(projectKey), info);
     await audit(projectKey, { type: 'demo-seeded', by: accountId, detail: `${created.length} synthetic delivery notes and the price history of 4 invented suppliers.` });

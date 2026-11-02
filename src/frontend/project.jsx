@@ -62,7 +62,7 @@ function FindingsTable({ findings }) {
     key: `f${i}`,
     cells: [
       { key: 'note', content: issueLink(f.issueKey) },
-      { key: 'supplier', content: f.supplier ?? 'Unknown', sortKey: f.supplier ?? '' },
+      { key: f.supplier ?? '', content: f.supplier ?? 'Unknown' },
       {
         key: 'what',
         content: (
@@ -78,7 +78,7 @@ function FindingsTable({ findings }) {
         ),
       },
       { key: 'line', content: f.line ? String(f.line) : 'totals' },
-      { key: 'amount', content: f.amountBeforeVat > 0 ? formatMoney(f.amountBeforeVat) : '', sortKey: f.amountBeforeVat },
+      { key: f.amountBeforeVat, content: f.amountBeforeVat > 0 ? formatMoney(f.amountBeforeVat) : '' },
     ],
   }));
   return <DynamicTable head={head} rows={rows} rowsPerPage={10} />;
@@ -100,12 +100,12 @@ function NotesTable({ notes }) {
     key: n.issueKey,
     cells: [
       { key: 'key', content: issueLink(n.issueKey) },
-      { key: 'supplier', content: n.supplier ?? 'Unknown', sortKey: n.supplier ?? '' },
+      { key: n.supplier ?? '', content: n.supplier ?? 'Unknown' },
       { key: 'number', content: n.number ?? '' },
-      { key: 'date', content: formatDate(n.date), sortKey: n.date ?? '' },
+      { key: n.date ?? '', content: formatDate(n.date) },
       { key: 'status', content: <StatusLozenge status={n.status} /> },
       { key: 'decision', content: <DecisionLozenge decision={n.decision} /> },
-      { key: 'amount', content: n.amountInDispute > 0 ? formatMoney(n.amountInDispute) : '', sortKey: n.amountInDispute },
+      { key: n.amountInDispute, content: n.amountInDispute > 0 ? formatMoney(n.amountInDispute) : '' },
     ],
   }));
   return <DynamicTable head={head} rows={rows} rowsPerPage={10} />;
@@ -131,7 +131,7 @@ function PriceChanges({ changes }) {
       { key: 'item', content: `${c.description ?? ''}${c.sku ? ` (${c.sku})` : ''}` },
       { key: 'from', content: `${formatMoney(c.from.unitPrice)}${c.from.date ? `, ${formatDate(c.from.date)}` : ''}` },
       { key: 'to', content: `${formatMoney(c.to.unitPrice)}${c.to.date ? `, ${formatDate(c.to.date)}` : ''}` },
-      { key: 'pct', content: <Text color={c.changePct > 0 ? 'color.text.danger' : 'color.text.success'}>{formatPct(c.changePct)}</Text>, sortKey: c.changePct },
+      { key: c.changePct, content: <Text color={c.changePct > 0 ? 'color.text.danger' : 'color.text.success'}>{formatPct(c.changePct)}</Text> },
       { key: 'kind', content: c.kind === 'pending' ? (c.to.issueKey ? issueLink(c.to.issueKey) : 'open note') : 'accepted history' },
     ],
   }));
@@ -159,9 +159,9 @@ function Suppliers({ suppliers }) {
     key: s.supplierKey,
     cells: [
       { key: 'name', content: s.supplierName },
-      { key: 'notes', content: String(s.notes), sortKey: s.notes },
-      { key: 'open', content: String(s.open), sortKey: s.open },
-      { key: 'dispute', content: s.inDispute > 0 ? formatMoney(s.inDispute) : '', sortKey: s.inDispute },
+      { key: s.notes, content: String(s.notes) },
+      { key: s.open, content: String(s.open) },
+      { key: s.inDispute, content: s.inDispute > 0 ? formatMoney(s.inDispute) : '' },
       { key: 'max', content: s.maxIncreasePct ? formatPct(s.maxIncreasePct) : '' },
       { key: 'last', content: formatDate(s.lastDelivery) },
     ],
