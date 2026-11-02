@@ -1,0 +1,27 @@
+{
+  "name": "dockside",
+  "version": "1.0.0",
+  "description": "Delivery note control for Jira: a deterministic engine checks supplier delivery notes against agreed prices, quantities and VAT, with a Rovo agent and MCP tools on top.",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": "^22.23.4 || ^24.22.1 || >=26.12.1"
+  },
+  "scripts": {
+    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test \"test/**/*.test.js\"",
+    "scorecard": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/scorecard.js",
+    "lint": "forge lint",
+    "forge": "forge"
+  },
+  "dependencies": {
+    "@forge/api": "8.4.0",
+    "@forge/bridge": "7.2.1",
+    "@forge/kvs": "2.1.1",
+    "@forge/react": "12.4.0",
+    "@forge/resolver": "2.0.2",
+    "react": "18.3.1"
+  },
+  "devDependencies": {
+    "@forge/cli": "15.0.0"
+  }
+}
