@@ -1,0 +1,278 @@
+# Dockside: delivery note control for Jira.
+# Every module below is documented at the URL in its comment (checked 2 Nov 2026).
+# app.id is filled in by `forge register` on the developer's machine.
+
+modules:
+  # https://developer.atlassian.com/platform/forge/manifest-reference/modules/jira-issue-panel/
+  jira:issuePanel:
+    - key: dockside-panel
+      resource: panel
+      resolver:
+        function: resolver
+      render: native
+      title: Dockside
+      icon: resource:assets;dockside.svg
+
+  # https://developer.atlassian.com/platform/forge/manifest-reference/modules/jira-project-page/
+  jira:projectPage:
+    - key: dockside-project
+      resource: project
+      resolver:
+        function: resolver
+      render: native
+      title: Dockside
+      icon: resource:assets;dockside.svg
+
+  # https://developer.atlassian.com/platform/forge/manifest-reference/modules/trigger/
+  # Events: https://developer.atlassian.com/platform/forge/events-reference/jira/ (scope read:jira-work)
+  trigger:
+    - key: dockside-issue-events
+      function: on-issue-event
+      events:
+        - avi:jira:created:issue
+        - avi:jira:updated:issue
+      filter:
+        ignoreSelf: true
+
+  # https://developer.atlassian.com/platform/forge/manifest-reference/modules/jira-entity-property/
+  # Lets people search with JQL, for example: issue.property[dockside].amountInDispute > 0
+  jira:entityProperty:
+    - key: dockside-index
+      entityType: issue
+      propertyKey: dockside
+      values:
+        - path: status
+          type: string
+          searchAlias: docksideStatus
+        - path: amountInDispute
+          type: number
+          searchAlias: docksideDisputed
+        - path: discrepancies
+          type: number
+          searchAlias: docksideFindings
+        - path: supplierName
+          type: text
+          searchAlias: docksideSupplier
+        - path: decision
+          type: string
+          searchAlias: docksideDecision
+
+  # https://developer.atlassian.com/platform/forge/manifest-reference/modules/rovo-action/
+  # actionVerb GET = read-only. Agents run from automation rules only invoke GET actions.
+  action:
+    - key: check-delivery-note
+      name: Check delivery note
+      function: action-check
+      actionVerb: GET
+      description: "Checks a delivery note with the Dockside engine: prices against supplier history, quantities, Spanish VAT, totals and duplicates. Give issueKey, plus extractedJson to verify your own extraction, or noteText and projectKey. Saves nothing."
+      inputs:
+        issueKey:
+          title: Work item key
+          type: string
+          required: false
+          description: The Jira work item that holds the delivery note, for example KAN-12.
+        extractedJson:
+          title: Extracted note JSON
+          type: string
+          required: false
+          description: Optional. The note as JSON with supplier, number, date, lines (each with lineNo and the exact source text) and totals.
+        noteText:
+          title: Note text
+          type: string
+          required: false
+          description: Optional. Delivery note text to check when it is not in a Jira work item.
+        projectKey:
+          title: Project key
+          type: string
+          required: false
+          description: Optional. The Jira project whose price history to use when checking noteText.
+
+    - key: parse-delivery-note
+      name: Parse delivery note
+      function: action-parse
+      actionVerb: GET
+      description: "Turns delivery note text (CSV, a table copied from a PDF, aligned columns, lines like 12 kg Hake @ 13,90, or JSON) into structured lines with line numbers and exact quotes. No checks, saves nothing."
+      inputs:
+        noteText:
+          title: Note text
+          type: string
+          required: true
+          description: The delivery note text.
+
+    - key: get-price-history
+      name: Get supplier price history
+      function: action-price-history
+      actionVerb: GET
+      description: "Prices a supplier charged on past delivery notes in a Jira project, newest first, with date, note number, work item and whether each price was approved or disputed."
+      inputs:
+        supplier:
+          title: Supplier
+          type: string
+          required: true
+          description: Supplier name, for example Pescados Rompeolas.
+        item:
+          title: Item
+          type: string
+          required: false
+          description: Optional. Item code or words from the description, for example hake.
+        projectKey:
+          title: Project key
+          type: string
+          required: false
+          description: Optional. The Jira project; the current one is used when omitted.
+
+    - key: list-open-discrepancies
+      name: List open discrepancies
+      function: action-open-findings
+      actionVerb: GET
+      description: "Findings on delivery notes in a Jira project that are not approved yet: what is wrong, on which line, the quote and the amount before VAT, plus the total in dispute. Can filter by supplier."
+      inputs:
+        projectKey:
+          title: Project key
+          type: string
+          required: false
+          description: Optional. The Jira project; the current one is used when omitted.
+        supplier:
+          title: Supplier
+          type: string
+          required: false
+          description: Optional. Only findings for this supplier.
+
+    - key: list-price-changes
+      name: List supplier price changes
+      function: action-price-changes
+      actionVerb: GET
+      description: "Which suppliers raised or lowered prices in a Jira project over a period: approved changes and increases on open notes, per item, with the percentage and the work items involved."
+      inputs:
+        projectKey:
+          title: Project key
+          type: string
+          required: false
+          description: Optional. The Jira project; the current one is used when omitted.
+        days:
+          title: Days
+          type: integer
+          required: false
+          description: Optional. How many days back to look. Defaults to 90.
+
+    - key: apply-extraction
+      name: Save extracted delivery note
+      function: action-save-extraction
+      actionVerb: UPDATE
+      description: "Saves your extracted lines on a hard-to-read delivery note once Dockside has verified every quote is in the note, then checks it again. Only when the user asks to save the extraction."
+      inputs:
+        issueKey:
+          title: Work item key
+          type: string
+          required: false
+          description: The Jira work item that holds the delivery note; the current one is used when omitted.
+        extractedJson:
+          title: Extracted note JSON
+          type: string
+          required: true
+          description: The note as JSON with supplier, number, date, lines (each with lineNo and the exact source text) and totals.
+
+    - key: record-decision
+      name: Approve or dispute delivery note
+      function: action-decision
+      actionVerb: UPDATE
+      description: "Records the user's decision on a checked delivery note: approve (its prices become the supplier reference) or dispute (posts a draft letter for the supplier). Only when the user explicitly asks."
+      inputs:
+        issueKey:
+          title: Work item key
+          type: string
+          required: false
+          description: The Jira work item; the current one is used when omitted.
+        decision:
+          title: Decision
+          type: string
+          required: true
+          description: Either approve or dispute.
+        reason:
+          title: Reason
+          type: string
+          required: false
+          description: Optional. A short reason to keep in the audit trail.
+
+  # https://developer.atlassian.com/platform/forge/manifest-reference/modules/rovo-agent/
+  # Prompt as a resource file needs Forge CLI 10.6.0 or later.
+  rovo:agent:
+    - key: receiving-clerk
+      name: Receiving Clerk
+      description: Checks supplier delivery notes against agreed prices, orders and VAT, cites every line, and drafts disputes.
+      icon: resource:assets;receiving-clerk.svg
+      prompt: resource:prompts;receiving-clerk.txt
+      conversationStarters:
+        - Check the delivery note on this work item
+        - Which suppliers raised prices this month?
+        - What is still in dispute in this project?
+        - What did we pay for hake from Pescados Rompeolas?
+      actions:
+        - check-delivery-note
+        - parse-delivery-note
+        - get-price-history
+        - list-open-discrepancies
+        - list-price-changes
+        - apply-extraction
+        - record-decision
+
+  # https://developer.atlassian.com/platform/forge/manifest-reference/modules/rovo-mcp/ (Preview, CLI 13.3.0 or later)
+  # Read-only tools only. Exposed to Rovo Studio agents and, once a site admin enables it,
+  # to external MCP clients at https://mcp.atlassian.com/forge/<appId>.
+  rovo:mcp:
+    - key: dockside-mcp
+      name: Dockside
+      tools:
+        - check-delivery-note
+        - parse-delivery-note
+        - get-price-history
+        - list-open-discrepancies
+        - list-price-changes
+
+  # https://developer.atlassian.com/platform/forge/manifest-reference/modules/function/
+  function:
+    - key: resolver
+      handler: index.handler
+    - key: on-issue-event
+      handler: index.onIssueEvent
+    - key: action-check
+      handler: index.actionCheckDeliveryNote
+    - key: action-parse
+      handler: index.actionParseDeliveryNote
+    - key: action-price-history
+      handler: index.actionPriceHistory
+    - key: action-open-findings
+      handler: index.actionOpenDiscrepancies
+    - key: action-price-changes
+      handler: index.actionPriceChanges
+    - key: action-save-extraction
+      handler: index.actionApplyExtraction
+    - key: action-decision
+      handler: index.actionRecordDecision
+
+# https://developer.atlassian.com/platform/forge/manifest-reference/resources/
+resources:
+  - key: panel
+    path: src/frontend/panel.jsx
+  - key: project
+    path: src/frontend/project.jsx
+  - key: assets
+    path: static/assets
+  - key: prompts
+    path: prompts
+
+# https://developer.atlassian.com/platform/forge/manifest-reference/permissions/
+# Scopes per Jira REST operation are listed in NOTAS.md.
+permissions:
+  scopes:
+    - read:jira-work
+    - write:jira-work
+    - manage:jira-configuration
+    - storage:app
+
+app:
+  runtime:
+    name: nodejs24.x
+    memoryMB: 256
+    architecture: arm64
+  id: ari:cloud:ecosystem::app/00000000-0000-0000-0000-000000000000
