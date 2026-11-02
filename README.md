@@ -9,17 +9,17 @@ Video: `VIDEO_LINK_PENDING`
 
 ## The problem
 
-A restaurant receives a delivery note with almost every delivery. Someone signs it at the kitchen door between two other jobs. Over a month the small things add up: the hake is 70 cents a kilo dearer than last time, two kilos of mussels arrive that nobody ordered, butter is billed for ten kilos when eight came off the van, eggs are charged at 7% VAT, and the same note is booked twice because it came by email and on paper.
+A restaurant gets a delivery note with almost every delivery. Someone signs it at the kitchen door between two other jobs. Over a month the small things add up: the hake's 70 cents a kilo dearer than last time, 2 kilos of mussels arrive that nobody ordered, butter's billed for 10 kilos when 8 came off the van, eggs are charged at 7% VAT, and the same note gets booked twice because it came by email and on paper.
 
-None of this is hard to catch. It just needs someone to compare every line with the last price and the order, every time, and nobody has time for that at 7:40 in the morning. I built Dockside so the comparison happens on its own, in the tool the team already uses to track work, and so the result is something you can act on: approve, or send the supplier a list of what to credit.
+None of this is hard to catch. It just needs someone to compare every line with the last price and the order, every time, and nobody's got time for that at 7:40 in the morning. I built Dockside so the comparison happens on its own, in the tool the team already uses to track work, and so you get something you can act on: approve it, or send the supplier a list of what to credit.
 
 ## What it does
 
 - Turns pasted notes into lines: CSV with commas or semicolons, tables copied from a PDF (pipes or aligned columns), simple lines like `15 kg Onions @ 0,92 = 13,80`, or JSON. Spanish and English headers, decimal commas or dots. Text attachments (.txt, .csv, .json) work too.
 - Checks each line: price against the reference (the agreed price list if there is one, otherwise the last approved note for that item), over-delivery against the order, goods billed but not counted at the door, short deliveries, line arithmetic, VAT rate against the Spanish rates (4, 10, 21%) and against what the supplier charged last time.
 - Checks the note: subtotal, VAT and total against the lines, missing totals, items listed twice, and the same note number from the same supplier booked before.
-- Gives one verdict per note (OK, Check, Dispute, Not read) and the money in dispute, VAT included, built line by line so a line the parser missed can never inflate it.
-- Never says OK without reading. A note with no readable lines is "Not read", and a note without a total is "Check".
+- Gives one verdict per note (OK, Check, Dispute, Not read) and the money in dispute, VAT included, built line by line so a line the parser missed can't inflate it.
+- It won't say OK without reading. A note with no readable lines is "Not read", and a note without a total is "Check".
 - Keeps an audit trail: who checked, approved or disputed what, when, and through which surface (panel or agent).
 
 ## Try it in two minutes
@@ -48,9 +48,9 @@ flowchart LR
   R --> T[Rovo actions and MCP tools]
 ```
 
-The model reads; the code decides. The engine in `src/lib/` has no Forge dependencies and no randomness: the same note, history and settings always give the same answer, which is what lets the tests below pin every figure to the cent. The Rovo agent only does what a language model is good at, reading a hand-typed note, and its output is treated as a claim to verify, not as a fact.
+The model reads; the code decides. I kept the engine in `src/lib/` free of Forge and of randomness: the same note, history and settings always give the same answer, and that's what lets the tests below pin every figure to the cent. The Rovo agent only does the part a language model is good at, reading a hand-typed note, and I treat what it returns as a claim to check, not a fact.
 
-Everything runs on Atlassian: no external servers, no egress, no third-party keys. Data lives in Forge storage for the installation.
+It all runs on Atlassian. There's no external server, no egress and no third-party key, and the data stays in Forge storage for the installation.
 
 ## Forge modules and Atlassian APIs
 
@@ -79,11 +79,13 @@ Every Jira call keeps its route inline so `forge lint` can match it to these sco
 
 ## Bonus prizes
 
-Best Rovo agent. The app ships a `rovo:agent`, the Receiving Clerk, backed by seven `action` modules. It answers questions such as "Which suppliers raised prices this month?" or "What is still in dispute?", checks the note on the current work item, and reads notes the parser can't. Its extractions go back through `check-delivery-note`, which rejects any line whose quote is not in the note or whose numbers are not in the quote, so the agent cannot invent a line or change a figure without it showing. Decisions stay with people: the agent records an approval or a dispute only when asked, through an `UPDATE` action that runs with the user's own permissions. The panel opens the agent with `rovo.open` and a prompt that already names the work item.
+I'm entering two bonus prizes.
 
-Best app with Atlassian MCP. The `rovo:mcp` module exposes five read-only tools: `check-delivery-note`, `parse-delivery-note`, `get-price-history`, `list-open-discrepancies` and `list-price-changes`. They are available to custom agents in Rovo Studio and, once a site admin turns on external exposure (Atlassian Administration, Apps, Sites, Connected apps, Dockside), to any MCP client at `https://mcp.atlassian.com/forge/<appId>`. A purchasing manager can ask their own AI client "which suppliers raised prices in KAN this quarter" and get an answer from the same engine, limited to what that person can see in Jira.
+Best Rovo agent. The app ships a `rovo:agent`, the Receiving Clerk, backed by 7 `action` modules. You can ask it "Which suppliers raised prices this month?" or "What's still in dispute?", have it check the note on the current work item, or hand it a note the parser can't read. Its extractions go back through `check-delivery-note`, which rejects any line whose quote isn't in the note or whose numbers aren't in the quote, so the agent can't invent a line or change a figure without it showing. Decisions stay with people: the agent records an approval or a dispute only when asked, through an `UPDATE` action that runs with the user's own permissions. The panel opens the agent with `rovo.open` and a prompt that already names the work item.
 
-Permissions on the MCP path: tools first call Jira as the user (`asUser()`). Atlassian documents that user tokens can fail for some external clients; when that happens Dockside does not fall back to app access blindly. It asks Jira, as the app, whether that exact account has Browse Projects on that project or work item (`POST /rest/api/3/permissions/check`) and refuses if not. Both paths are covered by tests.
+Best app with Atlassian MCP. The `rovo:mcp` module exposes 5 read-only tools: `check-delivery-note`, `parse-delivery-note`, `get-price-history`, `list-open-discrepancies` and `list-price-changes`. They're available to custom agents in Rovo Studio and, once a site admin turns on external exposure (Atlassian Administration, Apps, Sites, Connected apps, Dockside), to any MCP client at `https://mcp.atlassian.com/forge/<appId>`. A purchasing manager can ask their own AI client "which suppliers raised prices in KAN this quarter" and get an answer from the same engine, limited to what that person can see in Jira.
+
+Permissions on the MCP path: tools first call Jira as the user (`asUser()`). Atlassian documents that user tokens can fail for some external clients, and when that happens Dockside doesn't fall back to app access blindly. It asks Jira, as the app, whether that exact account has Browse Projects on that project or work item (`POST /rest/api/3/permissions/check`) and refuses if it hasn't. I test both paths.
 
 ## Permissions and audit
 
