@@ -64,7 +64,10 @@ modules:
       name: Check delivery note
       function: action-check
       actionVerb: GET
-      description: "Checks a delivery note with the Dockside engine: prices against supplier history, quantities, Spanish VAT, totals and duplicates. Give issueKey, plus extractedJson to verify your own extraction, or noteText and projectKey. Saves nothing."
+      description: "Checks a delivery note with the Dockside engine: prices against
+        supplier history, quantities, Spanish VAT, totals and duplicates. Give
+        issueKey, plus extractedJson to verify your own extraction, or noteText
+        and projectKey. Saves nothing."
       inputs:
         issueKey:
           title: Work item key
@@ -75,23 +78,28 @@ modules:
           title: Extracted note JSON
           type: string
           required: false
-          description: Optional. The note as JSON with supplier, number, date, lines (each with lineNo and the exact source text) and totals.
+          description: Optional. The note as JSON with supplier, number, date, lines (each
+            with lineNo and the exact source text) and totals.
         noteText:
           title: Note text
           type: string
           required: false
-          description: Optional. Delivery note text to check when it is not in a Jira work item.
+          description: Optional. Delivery note text to check when it is not in a Jira work
+            item.
         projectKey:
           title: Project key
           type: string
           required: false
-          description: Optional. The Jira project whose price history to use when checking noteText.
+          description: Optional. The Jira project whose price history to use when checking
+            noteText.
 
     - key: parse-delivery-note
       name: Parse delivery note
       function: action-parse
       actionVerb: GET
-      description: "Turns delivery note text (CSV, a table copied from a PDF, aligned columns, lines like 12 kg Hake @ 13,90, or JSON) into structured lines with line numbers and exact quotes. No checks, saves nothing."
+      description: "Turns delivery note text (CSV, a table copied from a PDF, aligned
+        columns, lines like 12 kg Hake @ 13,90, or JSON) into structured lines
+        with line numbers and exact quotes. No checks, saves nothing."
       inputs:
         noteText:
           title: Note text
@@ -103,7 +111,9 @@ modules:
       name: Get supplier price history
       function: action-price-history
       actionVerb: GET
-      description: "Prices a supplier charged on past delivery notes in a Jira project, newest first, with date, note number, work item and whether each price was approved or disputed."
+      description: "Prices a supplier charged on past delivery notes in a Jira
+        project, newest first, with date, note number, work item and whether
+        each price was approved or disputed."
       inputs:
         supplier:
           title: Supplier
@@ -125,7 +135,9 @@ modules:
       name: List open discrepancies
       function: action-open-findings
       actionVerb: GET
-      description: "Findings on delivery notes in a Jira project that are not approved yet: what is wrong, on which line, the quote and the amount before VAT, plus the total in dispute. Can filter by supplier."
+      description: "Findings on delivery notes in a Jira project that are not approved
+        yet: what is wrong, on which line, the quote and the amount before VAT,
+        plus the total in dispute. Can filter by supplier."
       inputs:
         projectKey:
           title: Project key
@@ -142,7 +154,9 @@ modules:
       name: List supplier price changes
       function: action-price-changes
       actionVerb: GET
-      description: "Which suppliers raised or lowered prices in a Jira project over a period: approved changes and increases on open notes, per item, with the percentage and the work items involved."
+      description: "Which suppliers raised or lowered prices in a Jira project over a
+        period: approved changes and increases on open notes, per item, with the
+        percentage and the work items involved."
       inputs:
         projectKey:
           title: Project key
@@ -159,24 +173,30 @@ modules:
       name: Save extracted delivery note
       function: action-save-extraction
       actionVerb: UPDATE
-      description: "Saves your extracted lines on a hard-to-read delivery note once Dockside has verified every quote is in the note, then checks it again. Only when the user asks to save the extraction."
+      description: "Saves your extracted lines on a hard-to-read delivery note once
+        Dockside has verified every quote is in the note, then checks it again.
+        Only when the user asks to save the extraction."
       inputs:
         issueKey:
           title: Work item key
           type: string
           required: false
-          description: The Jira work item that holds the delivery note; the current one is used when omitted.
+          description: The Jira work item that holds the delivery note; the current one is
+            used when omitted.
         extractedJson:
           title: Extracted note JSON
           type: string
           required: true
-          description: The note as JSON with supplier, number, date, lines (each with lineNo and the exact source text) and totals.
+          description: The note as JSON with supplier, number, date, lines (each with
+            lineNo and the exact source text) and totals.
 
     - key: record-decision
       name: Approve or dispute delivery note
       function: action-decision
       actionVerb: UPDATE
-      description: "Records the user's decision on a checked delivery note: approve (its prices become the supplier reference) or dispute (posts a draft letter for the supplier). Only when the user explicitly asks."
+      description: "Records the user's decision on a checked delivery note: approve
+        (its prices become the supplier reference) or dispute (posts a draft
+        letter for the supplier). Only when the user explicitly asks."
       inputs:
         issueKey:
           title: Work item key
@@ -199,7 +219,8 @@ modules:
   rovo:agent:
     - key: receiving-clerk
       name: Receiving Clerk
-      description: Checks supplier delivery notes against agreed prices, orders and VAT, cites every line, and drafts disputes.
+      description: Checks supplier delivery notes against agreed prices, orders and
+        VAT, cites every line, and drafts disputes.
       icon: resource:assets;receiving-clerk.svg
       prompt: resource:prompts;receiving-clerk.txt
       conversationStarters:
@@ -275,4 +296,4 @@ app:
     name: nodejs24.x
     memoryMB: 256
     architecture: arm64
-  id: ari:cloud:ecosystem::app/00000000-0000-0000-0000-000000000000
+  id: ari:cloud:ecosystem::app/ea499270-7199-4f15-a49b-af6d824022f7
