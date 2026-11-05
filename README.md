@@ -1,4 +1,9 @@
-# Dockside
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/lockup-reversed.svg">
+    <img src="docs/brand/lockup.svg" alt="Dockside" width="228" height="44">
+  </picture>
+</h1>
 
 Delivery note control inside Jira, for restaurants and anyone else who signs for goods at the back door.
 
@@ -172,3 +177,5 @@ The Forge CLI needs Node.js 22.23.4+, 24.22.1+ or 26.12.1+.
 ## Licence
 
 MIT
+
+The logo (the loading door with a crate crossing it) is in `docs/brand/` and in `static/assets/`. The name in the lockup is Barlow Semi Condensed SemiBold (SIL Open Font License 1.1), converted to outlines, so no font file ships with the app.
