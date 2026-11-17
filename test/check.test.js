@@ -158,3 +158,16 @@ test('the Dockside comment never doubles the full stop after a supplier name', (
   const noDot = adfToText(checkCommentAdf(checkDeliveryNote(parseDeliveryNote(text))));
   assert.ok(noDot.startsWith('Dockside checked this delivery note from Mercado Central. '), noDot.slice(0, 120));
 });
+
+test('a supplier typed in capitals shows under the name already known for it', () => {
+  const n6 = DEMO_NOTES.find((n) => n.id === 'n6-free-text');
+  const note = parseDeliveryNote(demoNoteText(n6));
+  assert.equal(note.supplier, 'HUERTA VALDELUZ S.COOP.');
+  const r = checkDeliveryNote(note, { history: historyFor(n6.supplier) });
+  assert.deepEqual(r.supplier, { name: 'Huerta Valdeluz S.Coop.', key: 'huerta-valdeluz' });
+  // The quote of what was actually written stays in the finding.
+  assert.equal(r.discrepancies.find((d) => d.code === 'SUPPLIER_GUESSED').source, 'HUERTA VALDELUZ S.COOP.');
+  // Another supplier's history never renames it, and with no history the name is shown as written.
+  assert.equal(checkDeliveryNote(note, { history: historyFor('Bebidas Cierzo S.A.') }).supplier.name, 'HUERTA VALDELUZ S.COOP.');
+  assert.equal(checkDeliveryNote(note).supplier.name, 'HUERTA VALDELUZ S.COOP.');
+});

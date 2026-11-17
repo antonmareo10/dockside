@@ -80,6 +80,18 @@ function vatBreakdown(rows, rateOf, baseOf) {
   return { vat: round2(vat), breakdown };
 }
 
+// The name this supplier is already known by: the one on its oldest price history entry. A note typed as
+// "HUERTA VALDELUZ S.COOP." then shows as "Huerta Valdeluz S.Coop.". Matching always uses the key, never the name.
+function knownSupplierName(key, history) {
+  let first = null;
+  for (const e of history) {
+    if (e.supplierKey !== key || !e.supplierName) continue;
+    const older = first && ((e.date || '').localeCompare(first.date || '') || (e.recordedAt || '').localeCompare(first.recordedAt || '')) < 0;
+    if (!first || older) first = e;
+  }
+  return first?.supplierName ?? null;
+}
+
 /**
  * Check one parsed delivery note.
  * @param {object} note output of parseDeliveryNote
@@ -114,6 +126,7 @@ export function checkDeliveryNote(note, ctx = {}) {
   };
 
   const supplier = { name: note.supplier ?? null, key: note.supplier ? supplierKey(note.supplier) : 'unknown-supplier' };
+  if (note.supplier) supplier.name = knownSupplierName(supplier.key, history) ?? note.supplier;
 
   for (const w of note.warnings || []) {
     push({
@@ -413,7 +426,7 @@ export function checkDeliveryNote(note, ctx = {}) {
       actual: note.number,
       amount: billedSubtotal,
       disputable: true,
-      message: `Note ${note.number} from ${note.supplier ?? 'this supplier'} was already booked in ${ctx.duplicateOf}. Paying it again would pay twice.`,
+      message: `Note ${note.number} from ${supplier.name ?? 'this supplier'} was already booked in ${ctx.duplicateOf}. Paying it again would pay twice.`,
     });
     amountInDispute = billedTotal ?? billedSubtotal;
     disputeBasis = billedTotal !== null ? 'gross' : 'net';
