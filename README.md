@@ -30,7 +30,7 @@ None of this is hard to catch. It just needs someone to compare every line with 
 ## Try it in two minutes
 
 1. Install Dockside on a Jira site (link above) and open any company-managed or team-managed project.
-2. Open the Dockside tab in the project and press "Load demo data". It creates seven invented delivery notes from four invented suppliers, plus three months of price history. Each note has a known problem.
+2. Open the Dockside tab in the project and press "Load demo data". It creates seven invented delivery notes from four invented suppliers, plus three months of price history. Six of them have a known problem and one is clean.
 3. Open a note (for example "Delivery note RP-24117 from Pescados Rompeolas S.L."). In the work item, open the Dockside panel from the apps button. You will see the verdict, each finding with its line number and the quoted line, and the money in dispute.
 4. Press Dispute. Dockside posts a draft letter to the supplier as a comment, from you, and keeps those prices out of the reference. Or press Approve, and those prices become the reference for the next note.
 5. With Rovo on, press "Ask the Receiving Clerk" on the hand-typed note (Huerta Valdeluz, note 5560). The agent reads the line the parser could not, sends its extraction back to the engine, and the engine checks every quote and number against the note before using it.

@@ -272,7 +272,7 @@ function DemoBox({ data, onLoaded }) {
     return (
       <Stack space="space.100">
         <Heading size="xsmall">Demo data</Heading>
-        <Text>{`Loaded on ${formatDateTime(data.demo.seededAt)}: seven invented delivery notes from four invented suppliers, each with a known problem.`}</Text>
+        <Text>{`Loaded on ${formatDateTime(data.demo.seededAt)}. Seven invented delivery notes from four invented suppliers: six with a known problem and one clean.`}</Text>
         <Inline space="space.100" shouldWrap>
           {data.demo.issues.map((i) => (
             <Inline key={i.issueKey} space="space.050" alignBlock="center">
@@ -363,7 +363,7 @@ function App() {
         {header}
         <EmptyState
           header="No delivery notes checked yet"
-          description="Load the demo to see seven invented notes with known problems: a price rise, goods nobody ordered, butter billed but not delivered, a wrong VAT rate, a note sent twice, a hand-typed note and one with nothing to read. Or paste a real note into a work item and mark it as a delivery note."
+          description="Load the demo to see seven invented notes, one clean and six with known problems: a price rise, goods nobody ordered, butter billed but not delivered, a wrong VAT rate, a note sent twice, a hand-typed note and one with nothing to read. Or paste a real note into a work item and mark it as a delivery note."
           primaryAction={
             <Button appearance="primary" isDisabled={seeding || !d.permissions.canCreate} onClick={seed}>
               {seeding ? 'Creating seven notes' : 'Load demo data'}
