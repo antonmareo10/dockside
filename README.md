@@ -90,6 +90,8 @@ Best Rovo agent. The app ships a `rovo:agent`, the Receiving Clerk, backed by 7 
 
 Best app with Atlassian MCP. The `rovo:mcp` module exposes 5 read-only tools: `check-delivery-note`, `parse-delivery-note`, `get-price-history`, `list-open-discrepancies` and `list-price-changes`. They're available to custom agents in Rovo Studio and, once a site admin turns on external exposure (Atlassian Administration, Apps, Sites, Connected apps, Dockside), to any MCP client at `https://mcp.atlassian.com/forge/<appId>`. A purchasing manager can ask their own AI client "which suppliers raised prices in KAN this quarter" and get an answer from the same engine, limited to what that person can see in Jira.
 
+For third-party agents there is an open skill file, [skills/dockside/SKILL.md](skills/dockside/SKILL.md): which tool answers which question, how to pass findings on with their line and quote, and how to send a reading of a hand-typed note back for checking.
+
 Permissions on the MCP path: tools first call Jira as the user (`asUser()`). Atlassian documents that user tokens can fail for some external clients, and when that happens Dockside doesn't fall back to app access blindly. It asks Jira, as the app, whether that exact account has Browse Projects on that project or work item (`POST /rest/api/3/permissions/check`) and refuses if it hasn't. I test both paths.
 
 ## Permissions and audit
