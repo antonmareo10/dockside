@@ -105,7 +105,7 @@ function NotesTable({ notes }) {
       { key: n.date ?? '', content: formatDate(n.date) },
       { key: 'status', content: <StatusLozenge status={n.status} /> },
       { key: 'decision', content: <DecisionLozenge decision={n.decision} /> },
-      { key: n.amountInDispute, content: n.amountInDispute > 0 ? formatMoney(n.amountInDispute) : '' },
+      { key: n.amountInDispute, content: n.amountInDispute > 0 ? `${formatMoney(n.amountInDispute)}${n.disputeBasis === 'net' ? ' before VAT' : ''}` : '' },
     ],
   }));
   return <DynamicTable head={head} rows={rows} rowsPerPage={10} />;
@@ -161,7 +161,7 @@ function Suppliers({ suppliers }) {
       { key: 'name', content: s.supplierName },
       { key: s.notes, content: String(s.notes) },
       { key: s.open, content: String(s.open) },
-      { key: s.inDispute, content: s.inDispute > 0 ? formatMoney(s.inDispute) : '' },
+      { key: s.inDispute + (s.inDisputeBeforeVat || 0), content: [s.inDispute > 0 ? formatMoney(s.inDispute) : null, s.inDisputeBeforeVat > 0 ? `${formatMoney(s.inDisputeBeforeVat)} before VAT` : null].filter(Boolean).join(' + ') },
       { key: 'max', content: s.maxIncreasePct ? formatPct(s.maxIncreasePct) : '' },
       { key: 'last', content: formatDate(s.lastDelivery) },
     ],
@@ -380,7 +380,12 @@ function App() {
     <Stack space="space.300">
       {header}
       <Inline space="space.150" shouldWrap>
-        <Tile label="In dispute" value={formatMoney(k.inDispute)} hint="VAT included, notes not yet approved" tone={k.inDispute > 0 ? 'danger' : 'success'} />
+        <Tile
+          label="In dispute"
+          value={formatMoney(k.inDispute)}
+          hint={k.inDisputeBeforeVat > 0 ? `VAT included, plus ${formatMoney(k.inDisputeBeforeVat)} before VAT on notes with no VAT rate` : 'VAT included, notes not yet approved'}
+          tone={k.inDispute > 0 || k.inDisputeBeforeVat > 0 ? 'danger' : 'success'}
+        />
         <Tile label="Need attention" value={String(k.needAttention)} hint={`of ${k.notesChecked} notes checked`} />
         <Tile label="Suppliers raising prices" value={String(k.suppliersRaisingPrices)} hint="last 90 days" />
         <Tile label="Price threshold" value={`${d.settings.priceThresholdPct}%`} hint="above the reference" />

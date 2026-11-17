@@ -322,6 +322,7 @@ export function parseText(input) {
     if (total) {
       if (total.field === 'vatByRate') {
         note.totals.vatByRate[total.rate] = total.value;
+        note.totals.sources.vatByRate ??= { lineNo: idx + 1, source: raw.trim() };
       } else if (note.totals[total.field] === null) {
         note.totals[total.field] = total.value;
         note.totals.sources[total.field] = { lineNo: idx + 1, source: raw.trim() };
@@ -413,6 +414,13 @@ export function parseJson(input) {
   note.totals.subtotal = num(pick(totals, 'subtotal', 'net', 'base'));
   note.totals.vat = num(pick(totals, 'vatTotal', 'vat', 'iva', 'tax'));
   note.totals.total = num(pick(totals, 'total', 'grandTotal'));
+  // VAT per rate, as [{ rate, vat }] or { "4": 1.19 }.
+  const byRate = pick(totals, 'vatBreakdown', 'vatByRate');
+  const rateRows = Array.isArray(byRate) ? byRate.map((b) => [pick(b, 'rate', 'vatRate'), pick(b, 'vat', 'vatAmount', 'amount')]) : byRate && typeof byRate === 'object' ? Object.entries(byRate) : [];
+  for (const [rawRate, amount] of rateRows) {
+    const rate = rawRate !== null ? parseRate(rawRate, dc) : null;
+    if (rate !== null) note.totals.vatByRate[rate] = num(amount);
+  }
   note.lines = note.lines.filter((l) => {
     if (lineIsUsable(l)) return true;
     note.warnings.push({ code: 'PARSE_SKIPPED_LINE', lineNo: l.lineNo, source: l.source ?? JSON.stringify(l.description ?? ''), message: 'Item is missing a description, quantity or price.' });

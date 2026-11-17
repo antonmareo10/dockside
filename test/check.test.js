@@ -171,3 +171,46 @@ test('a supplier typed in capitals shows under the name already known for it', (
   assert.equal(checkDeliveryNote(note, { history: historyFor('Bebidas Cierzo S.A.') }).supplier.name, 'HUERTA VALDELUZ S.COOP.');
   assert.equal(checkDeliveryNote(note).supplier.name, 'HUERTA VALDELUZ S.COOP.');
 });
+
+// What the agent really sends for the hand-typed note: the lines show no VAT rate, so it leaves them null.
+const N6_WITHOUT_LINE_RATES = { ...N6_AGENT_EXTRACTION, lines: N6_AGENT_EXTRACTION.lines.map(({ vatRate, ...l }) => l) };
+
+test('agent extraction: lines without a VAT rate take the single rate the note states in its totals', () => {
+  const n6 = DEMO_NOTES.find((n) => n.id === 'n6-free-text');
+  const r = checkDeliveryNote(parseDeliveryNote(N6_WITHOUT_LINE_RATES), { history: historyFor(n6.supplier), originalText: demoNoteText(n6) });
+  assert.deepEqual(scored(r).map((d) => d.code), ['PRICE_ABOVE_REFERENCE']);
+  assert.ok(r.lines.every((l) => l.vatRate === 4 && l.flags.includes('VAT_RATE_FROM_TOTALS')));
+  // Same money as when the agent copies the rate onto each line, and VAT is in it.
+  assert.equal(r.amountInDispute, 2.19);
+  assert.equal(r.disputeBasis, 'gross');
+  assert.equal(r.totals.computed.vat, 1.19);
+  // It says where the rate came from, with the quote.
+  const info = r.discrepancies.find((d) => d.code === 'VAT_RATE_FROM_TOTALS');
+  assert.equal(info.severity, 'info');
+  assert.equal(info.lineNo, 8);
+  assert.equal(info.source, 'IVA 4% 1,19');
+  assert.match(info.message, /3 lines; the 4% stated/);
+});
+
+test('agent extraction: the VAT rate comes from the document, not from what the extraction claims', () => {
+  const n6 = DEMO_NOTES.find((n) => n.id === 'n6-free-text');
+  const original = demoNoteText(n6).replace('IVA 4% 1,19', 'IVA 1,19');
+  const claimed = { ...N6_WITHOUT_LINE_RATES, vatBreakdown: [{ rate: 4, vat: 1.19 }] };
+  const r = checkDeliveryNote(parseDeliveryNote(claimed), { history: historyFor(n6.supplier), originalText: original });
+  assert.equal(scored(r).filter((d) => d.code === 'VAT_RATE_MISSING').length, 3);
+  assert.equal(r.disputeBasis, 'net');
+  assert.equal(r.amountInDispute, 2.1);
+  assert.match(r.summary, /€2\.10 in dispute before VAT/);
+});
+
+test('a JSON note with one rate in its VAT breakdown applies it to lines without a rate', () => {
+  const note = { ...N6_WITHOUT_LINE_RATES, vatBreakdown: [{ rate: 4, vat: 1.19 }] };
+  const r = checkDeliveryNote(parseDeliveryNote(note), { history: historyFor('Huerta Valdeluz S.Coop.') });
+  assert.equal(r.disputeBasis, 'gross');
+  assert.equal(r.amountInDispute, 2.19);
+  assert.ok(r.discrepancies.some((d) => d.code === 'VAT_RATE_FROM_TOTALS'));
+  // Two rates in the breakdown: no way to tell which line is which, so nothing is assumed.
+  const two = checkDeliveryNote(parseDeliveryNote({ ...N6_WITHOUT_LINE_RATES, vatByRate: { 4: 0.74, 10: 1.11 } }), { history: historyFor('Huerta Valdeluz S.Coop.') });
+  assert.equal(two.disputeBasis, 'net');
+  assert.equal(scored(two).filter((d) => d.code === 'VAT_RATE_MISSING').length, 3);
+});

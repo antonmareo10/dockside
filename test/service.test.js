@@ -222,6 +222,23 @@ test('Marking an ordinary work item as a delivery note checks it', async () => {
   assert.ok(world.issues.get(key).fields.labels.includes('delivery-note'));
 });
 
+test('Project overview never adds an amount before VAT into the VAT-included total', async () => {
+  const { as, world } = await seeded();
+  // No VAT rate on the line or in the totals: this note can only be disputed before VAT.
+  const key = world.addIssue({ projectKey: 'KAN', summary: 'Onions', labels: ['delivery-note'], description: doc(codeBlock(['Supplier: Huerta Valdeluz S.Coop.', 'Delivery note: HV-5570', '10 kg Onions, brown @ 0,92 = 9,20', 'Total 9,20'].join('\n'))) });
+  const view = await as(EDITOR).getIssueView({ issueKey: key, accountId: EDITOR });
+  assert.equal(view.record.disputeBasis, 'net');
+  assert.equal(view.record.amountInDispute, 1.4);
+  const o = await as(VIEWER).projectOverview({ projectKey: 'KAN', accountId: VIEWER });
+  assert.equal(o.kpis.inDispute, 432.91);
+  assert.equal(o.kpis.inDisputeBeforeVat, 1.4);
+  assert.equal(o.notes.find((n) => n.issueKey === key).disputeBasis, 'net');
+  const valdeluz = o.suppliers.find((s) => s.supplierKey === 'huerta-valdeluz');
+  assert.deepEqual([valdeluz.inDispute, valdeluz.inDisputeBeforeVat], [4.26, 1.4]);
+  const open = await as(VIEWER).tools.openDiscrepancies({ projectKey: 'KAN', supplier: 'Huerta Valdeluz', accountId: VIEWER, context: {} });
+  assert.deepEqual([open.amountInDisputeInclVat, open.amountInDisputeBeforeVat], [4.26, 1.4]);
+});
+
 // ---------- Rovo agent and MCP tools ----------
 
 test('Agent: check a hand-typed note, then verify and save its extraction', async () => {
@@ -240,6 +257,25 @@ test('Agent: check a hand-typed note, then verify and save its extraction', asyn
   const view = await svc.getIssueView({ issueKey: n6, accountId: EDITOR });
   assert.equal(view.record.origin.kind, 'agent-extraction');
   assert.equal(view.record.lineCount, 3);
+});
+
+test('Agent: an extraction without per-line VAT rates keeps the project total VAT included', async () => {
+  const { as, byDemo } = await seeded();
+  const n6 = byDemo['n6-free-text'];
+  const svc = as(EDITOR);
+  // The hand-typed lines show no VAT rate, so the agent leaves it null; the note says "IVA 4% 1,19".
+  const json = JSON.stringify({ ...N6_AGENT_EXTRACTION, lines: N6_AGENT_EXTRACTION.lines.map(({ vatRate, ...l }) => l) });
+  const saved = await svc.tools.applyExtraction({ issueKey: n6, extractedJson: json, accountId: EDITOR, context: {} });
+  assert.equal(saved.saved, true);
+  assert.equal(saved.amountInDispute, 2.19);
+  assert.equal(saved.amountBasis, 'including VAT');
+  assert.ok(!saved.findings.some((f) => f.code === 'VAT_RATE_MISSING'));
+  assert.ok(saved.findings.some((f) => f.code === 'VAT_RATE_FROM_TOTALS' && f.quote === 'IVA 4% 1,19'));
+  assert.equal(saved.supplier, 'Huerta Valdeluz S.Coop.');
+  const o = await svc.projectOverview({ projectKey: 'KAN', accountId: EDITOR });
+  // 432.91 with the two lines the parser read (2.18); 2.19 once the agent adds the third line's VAT base.
+  assert.equal(o.kpis.inDispute, 432.92);
+  assert.equal(o.kpis.inDisputeBeforeVat, 0);
 });
 
 test('Agent: an extraction with an invented line is refused', async () => {

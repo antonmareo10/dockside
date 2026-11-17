@@ -409,6 +409,16 @@ export function createDockside({ jiraUser, jiraApp, store, now = () => new Date(
     return rows.sort((a, b) => (a.severity === b.severity ? b.amountBeforeVat - a.amountBeforeVat : a.severity === 'error' ? -1 : 1));
   }
 
+  /**
+   * Money in dispute across notes. A note whose lines carry no VAT rate is in dispute before VAT; it is never
+   * added to the VAT-included total, so the two bases are reported side by side.
+   */
+  function disputeTotals(records) {
+    const sum = (rows) => Math.round(rows.reduce((s, r) => s + r.amountInDispute, 0) * 100) / 100;
+    const disputes = records.filter((r) => r.status === 'DISPUTE');
+    return { inclVat: sum(disputes.filter((r) => r.disputeBasis !== 'net')), beforeVat: sum(disputes.filter((r) => r.disputeBasis === 'net')) };
+  }
+
   function daysAgo(n) {
     const d = new Date(Date.parse(now()) - n * 86400000);
     return d.toISOString().slice(0, 10);
@@ -431,16 +441,19 @@ export function createDockside({ jiraUser, jiraApp, store, now = () => new Date(
       permissions(projectKey, ['ADMINISTER_PROJECTS', 'CREATE_ISSUES', 'ADMINISTER']),
     ]);
     const live = results.filter((r) => r.decision?.status !== 'accepted');
-    const inDispute = live.filter((r) => r.status === 'DISPUTE').reduce((s, r) => s + r.amountInDispute, 0);
+    const inDispute = disputeTotals(live);
     const changes = summarizePriceChanges({ history, results, since: daysAgo(90) });
     const bySupplier = new Map();
     for (const r of results) {
       const k = r.supplier?.key ?? 'unknown-supplier';
-      if (!bySupplier.has(k)) bySupplier.set(k, { supplierKey: k, supplierName: r.supplier?.name ?? 'Unknown supplier', notes: 0, open: 0, inDispute: 0, lastDelivery: null });
+      if (!bySupplier.has(k)) bySupplier.set(k, { supplierKey: k, supplierName: r.supplier?.name ?? 'Unknown supplier', notes: 0, open: 0, inDispute: 0, inDisputeBeforeVat: 0, lastDelivery: null });
       const s = bySupplier.get(k);
       s.notes += 1;
       if (r.decision?.status !== 'accepted' && r.status !== 'OK') s.open += 1;
-      if (r.decision?.status !== 'accepted' && r.status === 'DISPUTE') s.inDispute = Math.round((s.inDispute + r.amountInDispute) * 100) / 100;
+      if (r.decision?.status !== 'accepted' && r.status === 'DISPUTE') {
+        const field = r.disputeBasis === 'net' ? 'inDisputeBeforeVat' : 'inDispute';
+        s[field] = Math.round((s[field] + r.amountInDispute) * 100) / 100;
+      }
       if (r.date && (!s.lastDelivery || r.date > s.lastDelivery)) s.lastDelivery = r.date;
     }
     for (const c of changes.suppliers) {
@@ -459,15 +472,16 @@ export function createDockside({ jiraUser, jiraApp, store, now = () => new Date(
       kpis: {
         notesChecked: results.length,
         needAttention: live.filter((r) => r.status !== 'OK').length,
-        inDispute: Math.round(inDispute * 100) / 100,
+        inDispute: inDispute.inclVat,
+        inDisputeBeforeVat: inDispute.beforeVat,
         suppliersRaisingPrices: changes.suppliers.filter((s) => s.pendingIncreases > 0 || s.increases > 0).length,
       },
       notes: results
-        .map((r) => ({ issueKey: r.issueKey, title: r.title, supplier: r.supplier?.name ?? null, number: r.number, date: r.date, status: r.status, amountInDispute: r.amountInDispute, decision: r.decision?.status ?? 'pending', findings: r.counts.error + r.counts.warning, checkedAt: r.checkedAt }))
+        .map((r) => ({ issueKey: r.issueKey, title: r.title, supplier: r.supplier?.name ?? null, number: r.number, date: r.date, status: r.status, amountInDispute: r.amountInDispute, disputeBasis: r.disputeBasis ?? 'gross', decision: r.decision?.status ?? 'pending', findings: r.counts.error + r.counts.warning, checkedAt: r.checkedAt }))
         .sort((a, b) => String(b.date ?? '').localeCompare(String(a.date ?? '')) || b.issueKey.localeCompare(a.issueKey)),
       findings: openFindings(results),
       priceChanges: changes.changes.slice(0, 50),
-      suppliers: [...bySupplier.values()].sort((a, b) => b.inDispute - a.inDispute || b.notes - a.notes),
+      suppliers: [...bySupplier.values()].sort((a, b) => b.inDispute + b.inDisputeBeforeVat - (a.inDispute + a.inDisputeBeforeVat) || b.notes - a.notes),
       audit: auditRows.map((r) => r.value),
     };
   }
@@ -672,8 +686,8 @@ export function createDockside({ jiraUser, jiraApp, store, now = () => new Date(
     const results = await loadResults(pk);
     const findings = openFindings(results, { supplier: supplier || null });
     const notes = new Set(findings.map((f) => f.issueKey));
-    const amount = results.filter((r) => notes.has(r.issueKey) && r.status === 'DISPUTE').reduce((s, r) => s + r.amountInDispute, 0);
-    return { projectKey: pk, notesWithFindings: notes.size, amountInDisputeInclVat: Math.round(amount * 100) / 100, findings: findings.slice(0, 50) };
+    const amount = disputeTotals(results.filter((r) => notes.has(r.issueKey)));
+    return { projectKey: pk, notesWithFindings: notes.size, amountInDisputeInclVat: amount.inclVat, amountInDisputeBeforeVat: amount.beforeVat, findings: findings.slice(0, 50) };
   }
 
   async function toolPriceChanges({ projectKey, days, accountId, context }) {

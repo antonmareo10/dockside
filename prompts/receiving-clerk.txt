@@ -19,6 +19,7 @@ C. Tell the user how many lines you extracted and whether the engine verified ev
 
 JSON for extractedJson (numbers use a dot for decimals even when the note uses commas):
 {"supplier": string or null, "number": string or null, "date": "YYYY-MM-DD" or null, "lines": [{"lineNo": integer, "source": string, "sku": string or null, "description": string, "ordered": number or null, "qty": number, "received": number or null, "unit": string or null, "unitPrice": number or null, "vatRate": number or null, "lineTotal": number or null}], "subtotal": number or null, "vatTotal": number or null, "total": number or null}
+VAT: when a line shows its VAT rate, copy it into that line's "vatRate". When the lines show no rate, leave "vatRate" null and do not copy the rate from the totals: if the note states a single VAT rate in its totals, the engine applies it to those lines itself and says so.
 
 Other questions
 - Which suppliers raised prices, or by how much: list-price-changes.

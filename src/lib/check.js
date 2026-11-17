@@ -4,6 +4,7 @@
 
 import { approxEqual, formatMoney, formatPct, formatQty, numbersIn, round2, roundN } from './num.js';
 import { findReference, itemKeyFor, unitsDiffer } from './history.js';
+import { parseText } from './parse.js';
 import { looseText, supplierKey } from './text.js';
 
 export const ENGINE_VERSION = '1.0.0';
@@ -40,6 +41,7 @@ export const CODES = Object.freeze({
   PARSE_SKIPPED_LINE: 'Row skipped',
   SUPPLIER_GUESSED: 'Supplier guessed',
   PRICE_DERIVED: 'Price derived from total',
+  VAT_RATE_FROM_TOTALS: 'VAT rate taken from the totals',
 });
 
 export function normalizeSettings(raw = {}) {
@@ -196,7 +198,11 @@ export function checkDeliveryNote(note, ctx = {}) {
     } else seenItems.set(k, l.lineNo);
   });
 
-  const singleTotalsRate = Object.keys(note.totals?.vatByRate || {}).length === 1 ? Number(Object.keys(note.totals.vatByRate)[0]) : null;
+  // A single VAT rate stated in the note's totals ("IVA 4% 1,19") covers the lines that carry no rate of their
+  // own. For an agent extraction it is read from the original document, never taken from the extraction.
+  const statedTotals = verify ? parseText(ctx.originalText).totals : note.totals;
+  const statedRates = Object.keys(statedTotals?.vatByRate || {});
+  const singleTotalsRate = statedRates.length === 1 ? Number(statedRates[0]) : null;
 
   // ---- per line
   const lines = note.lines.map((l, i) => {
@@ -335,6 +341,19 @@ export function checkDeliveryNote(note, ctx = {}) {
     out.fairTotal = round2(fairQty * fairPrice * (1 - disc));
     return out;
   });
+
+  const fromTotals = lines.filter((l) => l.flags.includes('VAT_RATE_FROM_TOTALS')).length;
+  if (fromTotals) {
+    const at = statedTotals.sources?.vatByRate ?? null;
+    push({
+      code: 'VAT_RATE_FROM_TOTALS',
+      severity: 'info',
+      lineNo: at?.lineNo ?? null,
+      source: at?.source ?? null,
+      actual: singleTotalsRate,
+      message: `No VAT rate on ${fromTotals === 1 ? '1 line' : `${fromTotals} lines`}; the ${singleTotalsRate}% stated in the note's totals was applied.`,
+    });
+  }
 
   // ---- note level totals
   const tol = settings.totalsTolerance;

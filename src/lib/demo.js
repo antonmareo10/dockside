@@ -293,7 +293,7 @@ export const DEMO_NOTES = [
       status: 'DISPUTE',
       amountInDispute: 2.18,
       codes: [{ code: 'PRICE_ABOVE_REFERENCE', line: 0 }, { code: 'SUBTOTAL_MISMATCH', line: null }, { code: 'VAT_TOTAL_MISMATCH', line: null }],
-      info: [{ code: 'SUPPLIER_GUESSED', line: null }],
+      info: [{ code: 'SUPPLIER_GUESSED', line: null }, { code: 'VAT_RATE_FROM_TOTALS', line: null }],
     },
   },
   {
