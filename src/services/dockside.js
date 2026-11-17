@@ -9,6 +9,7 @@ import { adfToText, codeBlock, doc, paragraph, text as adfText } from '../lib/ad
 import { checkDeliveryNote, normalizeSettings } from '../lib/check.js';
 import { DEMO_NOTES, demoNoteText, demoSummary, seedHistory } from '../lib/demo.js';
 import { entriesFromResult, mergeEntries, summarizePriceChanges } from '../lib/history.js';
+import { formatMoney } from '../lib/num.js';
 import { parseDeliveryNote } from '../lib/parse.js';
 import { agentView, checkCommentAdf, DECISION_LABELS, decisionCommentAdf, disputeLetter, hashText, STATUS_LABELS } from '../lib/report.js';
 import { jaccard, normalize, slug, supplierKey } from '../lib/text.js';
@@ -295,7 +296,7 @@ export function createDockside({ jiraUser, jiraApp, store, now = () => new Date(
     await store.set(keys.result(projectKey, key), record);
     const changed = !previous || previous.fingerprint !== record.fingerprint;
     record.sideEffects = await syncIssue(record, { comment: changed, currentLabels: issue.fields.labels ?? null });
-    if (changed) await audit(projectKey, { type: 'checked', issueKey: key, by: accountId, actor, detail: `${record.status}, ${record.amountInDispute} in dispute` });
+    if (changed) await audit(projectKey, { type: 'checked', issueKey: key, by: accountId, actor, detail: `${record.status}, ${formatMoney(record.amountInDispute, record.settings.currency)} in dispute${record.amountInDispute > 0 ? (record.disputeBasis === 'gross' ? ' incl. VAT' : ' before VAT') : ''}` });
     for (const e of events.filter((x) => x.type === 'decision-cleared')) await audit(projectKey, { ...e, issueKey: key });
     return record;
   }
@@ -419,6 +420,12 @@ export function createDockside({ jiraUser, jiraApp, store, now = () => new Date(
     return { inclVat: sum(disputes.filter((r) => r.disputeBasis !== 'net')), beforeVat: sum(disputes.filter((r) => r.disputeBasis === 'net')) };
   }
 
+  /** Activity rows written before amounts were formatted ("DISPUTE, 2.1 in dispute") read like the rest of the UI. */
+  function auditView(entry) {
+    const m = typeof entry?.detail === 'string' ? entry.detail.match(/^([A-Z]+), ([0-9]+(?:[.][0-9]+)?) in dispute$/) : null;
+    return m ? { ...entry, detail: `${m[1]}, ${formatMoney(Number(m[2]))} in dispute` } : entry;
+  }
+
   function daysAgo(n) {
     const d = new Date(Date.parse(now()) - n * 86400000);
     return d.toISOString().slice(0, 10);
@@ -482,7 +489,7 @@ export function createDockside({ jiraUser, jiraApp, store, now = () => new Date(
       findings: openFindings(results),
       priceChanges: changes.changes.slice(0, 50),
       suppliers: [...bySupplier.values()].sort((a, b) => b.inDispute + b.inDisputeBeforeVat - (a.inDispute + a.inDisputeBeforeVat) || b.notes - a.notes),
-      audit: auditRows.map((r) => r.value),
+      audit: auditRows.map((r) => auditView(r.value)),
     };
   }
 

@@ -239,6 +239,19 @@ test('Project overview never adds an amount before VAT into the VAT-included tot
   assert.deepEqual([open.amountInDisputeInclVat, open.amountInDisputeBeforeVat], [4.26, 1.4]);
 });
 
+test('Activity shows money the way the rest of the UI does', async () => {
+  const { as, store } = await seeded();
+  // A row stored by an earlier version, with the bare number.
+  await store.set(keys.audit('KAN', '2026-11-01T08:00:00.000Z', 'old'), { at: '2026-11-01T08:00:00.000Z', type: 'checked', issueKey: 'KAN-1', by: null, actor: 'event', detail: 'DISPUTE, 2.1 in dispute' });
+  const o = await as(VIEWER).projectOverview({ projectKey: 'KAN', accountId: VIEWER });
+  const details = o.audit.filter((a) => a.type === 'checked').map((a) => a.detail);
+  assert.ok(details.includes('DISPUTE, €391.16 in dispute incl. VAT'));
+  assert.ok(details.includes('DISPUTE, €2.18 in dispute incl. VAT'));
+  assert.ok(details.includes('OK, €0.00 in dispute'));
+  assert.ok(details.includes('DISPUTE, €2.10 in dispute'));
+  assert.ok(details.every((d) => /, €[0-9][0-9,]*[.][0-9][0-9] in dispute/.test(d)), details.join(' | '));
+});
+
 // ---------- Rovo agent and MCP tools ----------
 
 test('Agent: check a hand-typed note, then verify and save its extraction', async () => {
