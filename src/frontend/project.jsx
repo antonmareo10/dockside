@@ -353,7 +353,6 @@ function App() {
 
   const header = (
     <Stack space="space.050">
-      <Heading size="large">Dockside</Heading>
       <Text color="color.text.subtle">Supplier delivery notes checked against the prices you agreed, what you ordered, VAT and their own arithmetic.</Text>
     </Stack>
   );
