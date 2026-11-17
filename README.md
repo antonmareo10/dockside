@@ -14,6 +14,8 @@ Video: [Watch the 3-minute demo](https://youtu.be/LZjLwTaQF_k)
 
 ## The problem
 
+My family runs a restaurant in Asturias, in the north of Spain, and nobody there compares each supplier's note or invoice with what actually arrived. That is the problem Dockside is for.
+
 A restaurant gets a delivery note with almost every delivery. Someone signs it at the kitchen door between two other jobs. Over a month the small things add up: the hake's 70 cents a kilo dearer than last time, 2 kilos of mussels arrive that nobody ordered, butter's billed for 10 kilos when 8 came off the van, eggs are charged at 7% VAT, and the same note gets booked twice because it came by email and on paper.
 
 None of this is hard to catch. It just needs someone to compare every line with the last price and the order, every time, and nobody's got time for that at 7:40 in the morning. I built Dockside so the comparison happens on its own, in the tool the team already uses to track work, and so you get something you can act on: approve it, or send the supplier a list of what to credit.
