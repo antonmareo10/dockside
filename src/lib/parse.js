@@ -50,6 +50,10 @@ const META_PATTERNS = [
   { field: 'po', re: /^\s*(?:purchase\s*order|po(?:\s*(?:no\.?|number|#))?|pedido(?:\s*n[º°o]\.?)?|n[º°o]\.?\s*pedido)\s*[:#]\s*([A-Za-z0-9][A-Za-z0-9\-\/._ ]*?)\s*$/i },
 ];
 
+// Number and date typed on one line: "Albaran 5560 / 02-11-2026", "Nº 5560 - 02/11/2026", "No. 5560, 2026-11-02".
+// The number must hold a digit, so "Albarán del 02-11-2026" is not read as a note number.
+const NUMBER_DATE = /^\s*(?:delivery\s*note(?:\s*(?:no\.?|number|num|#|nº))?|albar[aá]n(?:\s*(?:n[º°o]\.?|n[uú]m(?:ero)?\.?|#))?|n[º°]\.?|no\.?(?![a-z]))\s*[:#]?\s*(?=[A-Za-z0-9\-._]*\d)([A-Za-z0-9][A-Za-z0-9\-._]*?)\s*(?:[\/|,;]|\s-|\s)\s*(\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4}|\d{4}-\d{1,2}-\d{1,2})\s*$/i;
+
 const TOTAL_PATTERNS = [
   { field: 'subtotal', re: new RegExp(String.raw`^\s*(?:subtotal|sub-total|net\s*total|total\s*net[o]?|base(?:\s*imponible)?|total\s*base|taxable\s*base|net)\s*(?:\(.*?\))?\s*[:\-]?\s*${AMOUNT}\s*$`, 'i') },
   { field: 'vatByRate', re: new RegExp(String.raw`^\s*(?:vat|iva|cuota\s*iva|tax)\s*\(?\s*(\d{1,2}(?:[.,]\d+)?)\s*%\s*\)?\s*[:\-]?\s*${AMOUNT}\s*$`, 'i') },
@@ -174,6 +178,9 @@ function dedupeFields(fields) {
 }
 
 function matchMeta(line) {
+  const nd = line.match(NUMBER_DATE);
+  const ndDate = nd ? parseDate(nd[2]) : null;
+  if (ndDate) return { field: 'numberDate', number: nd[1], date: ndDate };
   for (const p of META_PATTERNS) {
     const m = line.match(p.re);
     if (m) return { field: p.field, value: m[1].trim() };
@@ -300,7 +307,10 @@ export function parseText(input) {
     if (tableRows.has(idx) || !raw.trim()) return;
     const meta = matchMeta(raw);
     if (meta) {
-      if (meta.field === 'date') {
+      if (meta.field === 'numberDate') {
+        if (!note.number) note.number = meta.number;
+        if (!note.date) note.date = meta.date;
+      } else if (meta.field === 'date') {
         const iso = parseDate(meta.value);
         if (iso && !note.date) note.date = iso;
       } else if (!note[meta.field]) {

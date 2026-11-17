@@ -4,6 +4,7 @@ import { parseDeliveryNote, parseDate } from '../src/lib/parse.js';
 import { parseNumber, parseRate, round2, detectDecimalComma } from '../src/lib/num.js';
 import { adfToText, doc, paragraph, codeBlock, text } from '../src/lib/adf.js';
 import { supplierKey, normalizeUnit } from '../src/lib/text.js';
+import { DEMO_NOTES, demoNoteText } from '../src/lib/demo.js';
 
 test('numbers in Spanish and English style', () => {
   assert.equal(parseNumber('1.234,56', true), 1234.56);
@@ -158,4 +159,29 @@ test('ADF descriptions become plain text with stable line numbers', () => {
   });
   assert.equal(adfToText(adf), 'Supplier: X\na;b;c\n1;2;3\nSKU | Qty');
   assert.equal(adfToText(null), '');
+});
+
+test('note number and date typed on one line', () => {
+  const read = (header) => {
+    const n = parseDeliveryNote(['HUERTA VALDELUZ S.COOP.', header, '3 kg Lemons @ 1,60 = 4,80', 'Total 4,80'].join('\n'));
+    return [n.number, n.date];
+  };
+  assert.deepEqual(read('Albaran 5560 / 02-11-2026'), ['5560', '2026-11-02']);
+  assert.deepEqual(read('Albarán nº 5560 - 02/11/2026'), ['5560', '2026-11-02']);
+  assert.deepEqual(read('Nº 5560 02/11/2026'), ['5560', '2026-11-02']);
+  assert.deepEqual(read('No. A-5560, 2026-11-02'), ['A-5560', '2026-11-02']);
+  assert.deepEqual(read('Delivery note 24-117 02/11/26'), ['24-117', '2026-11-02']);
+  // Not a number plus a date: nothing is invented.
+  assert.deepEqual(read('Albarán del 02-11-2026'), [null, null]);
+  assert.deepEqual(read('Albaran 5560 / 45-11-2026'), [null, null]);
+  assert.deepEqual(read('No 3 cajas el 02/11/2026'), [null, null]);
+  // The separate headers still read as before.
+  assert.deepEqual(read('Albarán nº: RP-24117'), ['RP-24117', null]);
+});
+
+test('the hand-typed demo note gives its number and date', () => {
+  const n = parseDeliveryNote(demoNoteText(DEMO_NOTES.find((d) => d.id === 'n6-free-text')));
+  assert.equal(n.number, '5560');
+  assert.equal(n.date, '2026-11-02');
+  assert.equal(n.supplier, 'HUERTA VALDELUZ S.COOP.');
 });
