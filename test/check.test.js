@@ -5,6 +5,8 @@ import { checkDeliveryNote } from '../src/lib/check.js';
 import { seedHistory, DEMO_NOTES, N6_AGENT_EXTRACTION, demoNoteText } from '../src/lib/demo.js';
 import { supplierKey } from '../src/lib/text.js';
 import { formatPct } from '../src/lib/num.js';
+import { checkCommentAdf } from '../src/lib/report.js';
+import { adfToText } from '../src/lib/adf.js';
 
 const HISTORY = seedHistory();
 const historyFor = (name) => HISTORY.filter((e) => e.supplierKey === supplierKey(name));
@@ -145,4 +147,14 @@ test('the price change on a line matches the one in its finding', () => {
       assert.ok(d.message.includes(formatPct(line.priceDeltaPct)), `${spec.id} line ${d.lineNo}`);
     }
   }
+});
+
+test('the Dockside comment never doubles the full stop after a supplier name', () => {
+  // "Pescados Rompeolas S.L." already ends with one; a supplier without a suffix still gets one.
+  const withDot = adfToText(checkCommentAdf(run(DEMO_NOTES[0])));
+  assert.ok(withDot.startsWith('Dockside checked delivery note RP-24117 from Pescados Rompeolas S.L. 2 things need a look'), withDot.slice(0, 120));
+  assert.ok(!withDot.includes('..'));
+  const text = ['Supplier: Mercado Central', 'SKU;Description;Qty;Unit;Price;VAT;Total', 'X-1;Salt;1;kg;1,00;10;1,00', 'Total: 1,10'].join('\n');
+  const noDot = adfToText(checkCommentAdf(checkDeliveryNote(parseDeliveryNote(text))));
+  assert.ok(noDot.startsWith('Dockside checked this delivery note from Mercado Central. '), noDot.slice(0, 120));
 });

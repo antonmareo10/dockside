@@ -37,10 +37,13 @@ function noteName(result) {
   return parts.join(' ');
 }
 
+/** End a sentence with a full stop unless it already has one ("... Rompeolas S.L."). */
+const sentence = (s) => (s.endsWith('.') ? s : `${s}.`);
+
 /** Comment Dockside posts after an automatic check. */
 export function checkCommentAdf(result) {
   const scored = result.discrepancies.filter((d) => d.severity !== 'info');
-  const intro = paragraph(strongText('Dockside'), text(` checked ${noteName(result)}. ${result.summary}`));
+  const intro = paragraph(strongText('Dockside'), text(` ${sentence(`checked ${noteName(result)}`)} ${result.summary}`));
   if (result.status === 'UNREADABLE') {
     return doc(
       intro,
