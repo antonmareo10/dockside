@@ -4,6 +4,7 @@ import { parseDeliveryNote } from '../src/lib/parse.js';
 import { checkDeliveryNote } from '../src/lib/check.js';
 import { seedHistory, DEMO_NOTES, N6_AGENT_EXTRACTION, demoNoteText } from '../src/lib/demo.js';
 import { supplierKey } from '../src/lib/text.js';
+import { formatPct } from '../src/lib/num.js';
 
 const HISTORY = seedHistory();
 const historyFor = (name) => HISTORY.filter((e) => e.supplierKey === supplierKey(name));
@@ -131,4 +132,17 @@ test('same input, same output', () => {
   const a = run(DEMO_NOTES[3]);
   const b = run(DEMO_NOTES[3]);
   assert.deepEqual(a, b);
+});
+
+test('the price change on a line matches the one in its finding', () => {
+  // Onions at 0.92 against 0.78 is +17.949...%: rounding to 2 decimals first and then to 1 showed +18.0% in the
+  // line table while the finding said +17.9%.
+  for (const spec of DEMO_NOTES) {
+    const r = run(spec, spec.duplicateOfDemo ? { duplicateOf: 'DEMO-1' } : {});
+    for (const d of r.discrepancies.filter((x) => x.code === 'PRICE_ABOVE_REFERENCE')) {
+      const line = r.lines.find((l) => l.lineNo === d.lineNo);
+      assert.equal(formatPct(line.priceDeltaPct), formatPct(d.deltaPct), `${spec.id} line ${d.lineNo}`);
+      assert.ok(d.message.includes(formatPct(line.priceDeltaPct)), `${spec.id} line ${d.lineNo}`);
+    }
+  }
 });

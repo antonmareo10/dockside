@@ -252,7 +252,7 @@ export function checkDeliveryNote(note, ctx = {}) {
         push({ ...base, code: 'UNIT_CHANGED', severity: 'warning', expected: ref.unit, actual: l.unit, message: `Unit changed from ${ref.unit} to ${l.unit} since ${refText(ref)}, so the price was not compared.` });
       } else if (ref.unitPrice > 0 && price !== null) {
         const deltaPct = ((price - ref.unitPrice) / ref.unitPrice) * 100;
-        out.priceDeltaPct = roundN(deltaPct, 2);
+        out.priceDeltaPct = roundN(deltaPct, 1);
         if (deltaPct > settings.priceThresholdPct + 1e-9) {
           fairPrice = ref.unitPrice;
           const amount = round2((price - ref.unitPrice) * fairQty * (1 - disc));
